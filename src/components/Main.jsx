@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { loader } from "../assets";
 import { useLazyGetSummaryQuery } from "../services/article";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DoneIcon from "@mui/icons-material/Done";
 import SendIcon from "@mui/icons-material/Send";
 import Example from "./Example";
-import Footer from "./Footer";
+
 const Main = () => {
   //Дефолтный ответ отдает Линк на статью и результат.
   const [article, setArticle] = useState({
@@ -14,7 +14,7 @@ const Main = () => {
   });
 
   const [allArticles, setAllArticles] = useState([]);
-
+  const [translate, setTranslate] = useState(false);
   //RTQ Query получаем результат выжимки из статьи
   const [getSummary, { error, isFetching }] = useLazyGetSummaryQuery();
 
@@ -29,19 +29,43 @@ const Main = () => {
       setAllArticles(articlesFromLocalStorage);
     }
   }, []);
-
+  const inputRef = useRef();
   //Submit формы + запись в localstorage и разворот
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const { data } = await getSummary({ articleUrl: article.url });
     if (data?.summary) {
-      // Ссылка уже записана через Input, здесь записываем результат
-      const newArticle = { ...article, summary: data.summary };
-      //Все запросы обновленные
-      const updatedAllArticles = [newArticle, ...allArticles];
-      setAllArticles(updatedAllArticles);
-      setArticle(newArticle);
-      localStorage.setItem("articles", JSON.stringify(updatedAllArticles));
+      setTranslate(true);
+      // Сделать перевод
+      const url = "https://google-translate105.p.rapidapi.com/v1/rapid/translate";
+      const options = {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          "X-RapidAPI-Key": "efaa4c86b7msh6c4c20b500d2eb6p115af6jsn55cff6c704f8",
+          "X-RapidAPI-Host": "google-translate105.p.rapidapi.com",
+        },
+        body: new URLSearchParams({
+          text: data.summary,
+          to_lang: "ru",
+          from_lang: "en",
+        }),
+      };
+
+      fetch(url, options)
+        .then((data) => data.json())
+        .then((data) => {
+          // Ссылка уже записана через Input, здесь записываем результат
+          const newArticle = { ...article, summary: data.translated_text };
+          //Все запросы обновленные
+          const updatedAllArticles = [newArticle, ...allArticles];
+          setAllArticles(updatedAllArticles);
+          setArticle(newArticle);
+          localStorage.setItem("articles", JSON.stringify(updatedAllArticles));
+          inputRef.current.value = "";
+          setTranslate(false);
+        });
     }
   };
   //Скопировать по кнопке copy
@@ -61,26 +85,22 @@ const Main = () => {
           <input
             type="url"
             placeholder="Введите URL"
-            value={article.url}
             // Развернем артикль для отправки запроса
             onChange={(e) => setArticle({ ...article, url: e.target.value })}
             required
             className="url_input peer"
+            ref={inputRef}
           />
 
           <button type="submit" className="submit_btn">
             <SendIcon />
           </button>
         </form>
-        <h2 className="text-gray-300 font-inter font-medium text-sm">
-          Время на формирование результата занимает приблизительно 5-20с, на данный момент ответ доступен только на Английском языке.
-        </h2>
-        {/* Демо пример новым юзерам */}
-        {allArticles.length === 0 && <Example />}
+        <h2 className="text-gray-300 font-inter font-medium text-sm">Время на формирование результата занимает приблизительно 5-20с.</h2>
 
-        <div className="flex flex-col gap-2 overflow-y-auto ">
+        <div className="flex flex-col gap-2 overflow-y-auto mt-6">
           <h2 className="font-satoshi font-bold text-white text-xl">
-            {allArticles.length !== 0 && <span className="blue_gradient">Сохраненное</span>}
+            {allArticles.length !== 0 && <span className="blue_gradient">Сохраненное:</span>}
           </h2>
           {allArticles.map((item, index) => {
             return (
@@ -106,31 +126,51 @@ const Main = () => {
           })}
         </div>
       </div>
-      {allArticles.length !== 0 && (
-        <div className="my-10 max-w-full flex justify-center items-center ">
-          {isFetching ? (
+
+      <div className={`${article.summary !== "" && "my-8"} max-w-full flex justify-center items-center`}>
+        {isFetching ? (
+          <div className="flex flex-col justify-center items-center gap-1 ">
+            {!translate ? (
+              <h2 className="text-white desc">Запрос обрабатывается..</h2>
+            ) : (
+              <h2 className="text-white desc">Переводим и формируем результат..</h2>
+            )}
+
             <img src={loader} alt="loader" className="w-20 h-20 object-contain" />
-          ) : error ? (
-            <p className="font-inter font-bold text-black text-center">
-              Ошибка
-              <br />
-              <span className="font-satoshi font-normal text-gray-700">{error?.data?.error}</span>
-            </p>
-          ) : (
-            article.summary && (
-              <div className="flex flex-col gap-3">
-                <h2 className="font-satoshi font-bold text-white text-xl">
-                  Главное из <span className="blue_gradient">статьи:</span>
-                </h2>
-                <div className="summary_box">
-                  <p className="font-inter font-medium text-sm text-gray-300">{article.summary}</p>
-                </div>
+          </div>
+        ) : error ? (
+          <p className="font-inter font-bold text-red-500 text-center">
+            Ошибка
+            <br />
+            <span className=" font-normal text-white">{error?.data?.error}</span>
+          </p>
+        ) : (
+          article.summary && (
+            <div className="flex flex-col gap-3">
+              <h2 className="font-satoshi font-bold text-white text-xl">
+                Главное из <span className="blue_gradient">статьи:</span>
+              </h2>
+              <div className="summary_box flex">
+                {!copied === true ? (
+                  <ContentCopyIcon
+                    className="cursor-pointer"
+                    sx={{ color: "white" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopy(article.summary);
+                    }}
+                  />
+                ) : (
+                  <DoneIcon sx={{ color: "white" }} />
+                )}
+
+                <p className="font-inter font-medium text-sm text-gray-300 ">{article.summary}</p>
               </div>
-            )
-          )}
-        </div>
-      )}
-      <Footer />
+            </div>
+          )
+        )}
+      </div>
+      {allArticles.length === 0 && <Example />}
     </section>
   );
 };

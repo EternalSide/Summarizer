@@ -3,7 +3,7 @@ const Header = () => {
     <header className="w-full flex justify-center items-center flex-col">
       <nav className="flex justify-between items-center w-full mb-10 pt-3">
         <div className="flex items-center gap-1.5 ">
-          <img src="../../public/favicon.ico" alt="Лого сайта" className="w-8  h-7" />
+          <img src="https://cdn-icons-png.flaticon.com/512/8489/8489474.png" alt="Лого сайта" className="w-8  h-7" />
           <h1 className="text-xl text-white font-bold">Summarizer</h1>
         </div>
         <button type="button" className="black_btn" onClick={() => window.open("https://github.com/EternalSide")}>
