@@ -14,4 +14,4 @@ Summarizer - приложение обобщения статей с откры�
 4. Tailwind CSS
 5. Vite
 
-###  [Summarizer](https://eternalside.github.io//)
+###  [Summarizer](https://summarizer-red.vercel.app)
